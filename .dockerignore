@@ -1,0 +1,4 @@
+data/dev_set
+data/*.npy
+raw_data
+test
