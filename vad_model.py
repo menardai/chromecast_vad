@@ -44,18 +44,18 @@ class VadModel(object):
         X = Conv1D(196, 15, strides=4)(X_input)  # CONV1D
         X = BatchNormalization()(X)              # Batch normalization
         X = Activation('relu')(X)                # ReLu activation
-        X = Dropout(0.8)(X)                      # dropout (use 0.8)
+        #X = Dropout(0.8)(X)
 
         # First GRU Layer
         X = GRU(128, return_sequences=True)(X)   # GRU (use 128 units and return the sequences)
-        X = Dropout(0.8)(X)                      # dropout (use 0.8)
+        X = Dropout(0.5)(X)                      # dropout
         X = BatchNormalization()(X)              # Batch normalization
 
         # Second GRU Layer
         X = GRU(128, return_sequences=True)(X)   # GRU (use 128 units and return the sequences)
-        X = Dropout(0.8)(X)                      # dropout (use 0.8)
+        X = Dropout(0.5)(X)                      # dropout
         X = BatchNormalization()(X)              # Batch normalization
-        X = Dropout(0.8)(X)                      # dropout (use 0.8)
+        X = Dropout(0.5)(X)                      # dropout
 
         # Time-distributed dense layer
         X = TimeDistributed(Dense(1, activation = "sigmoid"))(X) # time distributed  (sigmoid)
@@ -106,11 +106,14 @@ class VadModel(object):
 
 if __name__ == '__main__':
     print('loading model...')
-    vad_model = VadModel(architecture_filename='models/model_architecture.json', weights_filename='models/vad_26_10_2018_weights_7.h5')
-    #vad_model = VadModel(weights_filename='models/vad_26_10_2018_weights_7.h5')
+    vad_model = VadModel(architecture_filename='models/model_architecture.json', weights_filename='models/vad_09_11_2018_weights.h5')
+
+    # Save the model architecture
+    #with open('models/model_architecture.json', 'w') as f:
+    #    f.write(vad_model.model.to_json())
 
     print('loading wav file...')
-    wav_filename = 'data/test_set/test_with_dialog_00105.wav'
+    wav_filename = 'data/test_set_wav/test_with_dialog_00105.wav'
     rate, data = VadModel.get_wav_info(wav_filename)
 
     print('waiting 2 seconds...')

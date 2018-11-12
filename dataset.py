@@ -1,11 +1,38 @@
 import os
+import gc
 import numpy as np
-import matplotlib.pyplot as plt
 
-from scipy.io import wavfile
 from random import randint
 from pydub import AudioSegment
 from vad_model import VadModel
+
+from keras.utils import Sequence
+
+
+class SpectrogramDataGenerator(Sequence):
+
+    def __init__(self, x_set, y_set, batch_size):
+        '''
+        Here, `x_set` is list of path to the spectrogram .npy file
+        and `y_set` are the associated truth vector .npy file
+        '''
+        self.x, self.y = x_set, y_set
+        self.batch_size = batch_size
+
+    def __len__(self):
+        return int(np.ceil(len(self.x) / float(self.batch_size)))
+
+    def __getitem__(self, idx):
+        ''' this method should return a complete batch. '''
+        batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
+        batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
+
+        return (np.array([np.load(filename) for filename in batch_x]),
+                np.array([np.load(filename) for filename in batch_y]))
+
+    def on_epoch_end(self):
+        ''' If you want to modify your dataset between epochs you may implement. '''
+        pass
 
 
 class Dataset(object):
@@ -39,6 +66,7 @@ class Dataset(object):
         for i in range(n_x-1):
             if i % 100 == 0:
                 print('sample {0}/{1}'.format(i, n_x))
+                gc.collect()
 
             music_index = randint(0, len(self.musics)-1)
             noise_index = randint(0, len(self.noises)-1)
@@ -58,14 +86,41 @@ class Dataset(object):
 
         return X, Y
 
+    def create_dev_dataset_files(self, n_x, output_folder, start_index=0):
+        #X = np.zeros((self.Tx, self.n_freq))
+        #Y = np.zeros((self.Ty, 1))
+
+        print('number of training samples to generate =', n_x)
+
+        for i in range(start_index, start_index + n_x):
+            if i % 100 == 0:
+                print('sample {0}/{1}'.format(i, n_x))
+
+            music_index = randint(0, len(self.musics)-1)
+            noise_index = randint(0, len(self.noises)-1)
+
+            x_wav_filename = '{}/x_{}.wav'.format(output_folder, i)
+            x, y = self.create_training_example(self.musics[music_index], self.dialogs, self.noises[noise_index],
+                                                output_wav_filename=x_wav_filename, verbose=False)
+
+            X = x.transpose()
+            Y = y.transpose()
+
+            x_sample_filename = '{}/x_spectrogram_{}.npy'.format(output_folder, i)
+            y_sample_filename = '{}/y_{}.npy'.format(output_folder, i)
+            np.save(x_sample_filename, X)
+            np.save(y_sample_filename, Y)
+
+            del X, Y, x, y
+
     def load_dataset(x_filename, y_filename):
         X = np.load(x_filename)
         Y = np.load(y_filename)
         return X, Y
 
-    def create_training_example(self, music, dialogs, noise, verbose=False):
+    def create_training_example(self, music, dialogs, noise, output_wav_filename='train.wav', verbose=False):
         """
-        Creates a training example with a given music, activates, and negatives.
+        Creates a training example with a given music, noise, and dialog.
 
         Arguments:
         music -- a 10 second music audio recording
@@ -80,14 +135,13 @@ class Dataset(object):
         # Set the random seed
         #np.random.seed(18)
 
-        mixed_audio = None
         if np.random.randint(0, 5) == 0:
             # 20% of the time, only noise (no music)
             mixed_audio = noise
         else:
-            # Make music quieter (random value up to 20 dB)
-            dB_reduction = np.random.randint(0, 20)
-            mixed_audio = music - dB_reduction
+            # Make music quieter or louder
+            dB_reduction = np.random.randint(-20, 10)
+            mixed_audio = music + dB_reduction
             if verbose: print("music -{0} dB".format(dB_reduction))
 
             # insert the noise audio over mixed_audio and optional dialog
@@ -103,9 +157,9 @@ class Dataset(object):
 
         # Loop over randomly selected "conversation" clips and insert in mixed_audio
         for random_dialog in random_dialogs:
-            # Make dialog quieter (random value up to 10 dB)
-            dB_reduction = np.random.randint(0, 10)
-            random_dialog = random_dialog - dB_reduction
+            # Make dialog quieter or louder
+            dB_reduction = np.random.randint(-10, 10)
+            random_dialog = random_dialog + dB_reduction
 
             # Insert the audio clip on the mixed_audio
             if verbose: print("dialog insertion... -{0} dB".format(dB_reduction))
@@ -120,11 +174,12 @@ class Dataset(object):
         mixed_audio = self._match_target_amplitude(mixed_audio, -20.0)
 
         # Export new training example
-        file_handle = mixed_audio.export("train" + ".wav", format="wav")
-        #if verbose: print("File (train.wav) was saved in your directory.")
+        file_handle = mixed_audio.export(output_wav_filename, format="wav")
+        file_handle.close()
+        del mixed_audio
 
-        # Get and plot spectrogram of the new recording (mixed_audio with superposition of positive and negatives)
-        x = VadModel.graph_spectrogram("train.wav")
+        # Get and plot spectrogram of the new recording (mixed_audio with superposition of music, noise and dialog)
+        x = VadModel.graph_spectrogram(output_wav_filename)
 
         return x, y
 
@@ -264,9 +319,9 @@ class Dataset(object):
 
 if __name__ == '__main__':
     dataset = Dataset(Tx=5511, Ty=1375, n_freq=101,
-                      dialog_dir='../data/dev_set/dialog',
-                      noise_dir='../data/dev_set/noise',
-                      music_dir='../data/dev_set/music',
+                      dialog_dir='../data/dev_set_wav/dialog',
+                      noise_dir='../data/dev_set_wav/noise',
+                      music_dir='../data/dev_set_wav/music',
                       verbose=True)
 
     print("music[0]: " + str(len(dataset.musics[0])))        # Should be 10,000, since it is a 10 sec clip
@@ -277,10 +332,10 @@ if __name__ == '__main__':
     print('dialogs audio count = ', len(dataset.dialogs))
     print('noises 10s audio count = ', len(dataset.noises))
 
-    x, y = dataset.create_training_example(dataset.musics[1], dataset.dialogs, dataset.noises[1])
+    # x, y = dataset.create_training_example(dataset.musics[1], dataset.dialogs, dataset.noises[1])
+    # print('x.shape =', x.shape)
+    # print('y.shape =', y.shape)
 
-    print('x.shape =', x.shape)
-    print('y.shape =', y.shape)
-
-    dataset.create_dev_dataset(2500, '../data/dev_set_2500_x.npy', '../data/dev_set_2500_y.npy')
-    #dataset.create_dev_dataset(5000)
+    #dataset.create_dev_dataset(2500, '../data/dev_set_2500_x.npy', '../data/dev_set_2500_y.npy')
+    #dataset.create_dev_dataset_files(5000, '/media/ai/backup/datasets/voice_activity_detection/dev_set')
+    dataset.create_dev_dataset_files(5000, '/media/ai/backup/datasets/voice_activity_detection/dev_set', start_index=5000)
