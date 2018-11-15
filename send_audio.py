@@ -5,7 +5,9 @@ import numpy as np
 
 
 url = 'http://127.0.0.1:5000/predict'
-files = {'audio': open('data/test_set/test_with_dialog_00105.wav', 'rb')}
+
+#files = {'audio': open('data/test_set_wav/test_with_dialog_00105.wav', 'rb')}
+files = {'audio': open('data/live_recording.wav', 'rb')}
 
 r = requests.post(url, files=files)
 #print(r.text)

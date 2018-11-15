@@ -1,4 +1,7 @@
-data/dev_set
+.git
+.dockerignore
+data/dev_set_wav
 data/*.npy
+data
 raw_data
 test

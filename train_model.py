@@ -5,6 +5,7 @@ import glob
 from sklearn.model_selection import train_test_split
 from keras.optimizers import Adam
 from keras.callbacks import TensorBoard
+from keras.models import load_model
 
 from vad_model import VadModel
 from dataset import SpectrogramDataGenerator
@@ -12,8 +13,8 @@ from dataset import SpectrogramDataGenerator
 
 def train_10000_split_samples():
     # load and split dataset
-    x_filenames = sorted(glob.glob('/media/ai/backup/datasets/voice_activity_detection/dev_set/x_spectrogram_*.npy'))
-    y_filenames = sorted(glob.glob('/media/ai/backup/datasets/voice_activity_detection/dev_set/y_*.npy'))
+    x_filenames = sorted(glob.glob('data/dev_set/x_spectrogram_*.npy'))
+    y_filenames = sorted(glob.glob('data/dev_set/y_*.npy'))
 
     print('number of samples (to split in train/val) =', len(x_filenames))
     print(x_filenames[0])
@@ -26,24 +27,33 @@ def train_10000_split_samples():
     training_generator = SpectrogramDataGenerator(X_filename_train, Y_filename_train, batch_size)
     val_generator = SpectrogramDataGenerator(X_filename_val, Y_filename_val, batch_size)
 
+    model_desk = '15-11-2018-input_d10-d50b'
     # load model
+    #vad = VadModel(architecture_filename='models/model_architecture_12_11_2018.json', weights_filename='models/vad_12_11_2018b_weights.h5')
+
+    # use instance model and save the architecture
+    #vad = VadModel()
+    #with open('models/model_architecture_{}.json'.format(model_desk), 'w') as f:
+    #    f.write(vad.model.to_json())
+
     vad = VadModel()
-    #vad = VadModel(architecture_filename='models/model_architecture.json')
+    vad.model = load_model("models/vad_15-11-2018-input_d10-d50.h5")
 
     # compile
     #lr_list = [0.00005, 0.0001, 0.0002, 0.0005]
-    lr_list = [0.0005]
+    #lr_list = [0.0005]
+    lr_list = [0.00025]
     for lr in lr_list:
         opt = Adam(lr=lr, beta_1=0.9, beta_2=0.999, decay=0.01)
         vad.model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
 
-        experiment_name = 'gru_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%Hh%M"), lr)
+        experiment_name = 'input_drop_10_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%Hh%M"), lr)
         tbCallBack = TensorBoard(log_dir='./logs/'+experiment_name,
                                  histogram_freq=0, write_graph=False, write_images=False)
 
         # train
         vad.model.fit_generator(
-            epochs=75,
+            epochs=25,
 
             generator=training_generator,
             steps_per_epoch=len(training_generator),
@@ -53,7 +63,8 @@ def train_10000_split_samples():
 
             callbacks=[tbCallBack])
 
-        vad.model.save_weights("models/vad_09_11_2018_weights.h5")
+        vad.model.save_weights("models/vad_{}_weights.h5".format(model_desk))
+        vad.model.save("models/vad_{}.h5".format(model_desk))
 
 
 if __name__ == '__main__':

@@ -109,6 +109,11 @@ class AudioSlice(object):
         start_ms = 0
         length_ms = randint(self.min_length_ms, self.max_length_ms)
 
+        # special case for audio clip shorter than selected random length.
+        # ex: audio of 6s, random length of 8s --> will reset the random length to 6s
+        if remaining_time_ms < length_ms and remaining_time_ms > self.min_length_ms:
+            length_ms = remaining_time_ms - 100
+
         while remaining_time_ms - length_ms > 0:
             chunk_name = "{0}/{1}{2:05d}.{3}".format(self.output_dir, self.output_filename_prefix, next_chunk_index, self.output_format)
             if verbose: print("exporting {0}ms - {1}".format(length_ms, chunk_name))

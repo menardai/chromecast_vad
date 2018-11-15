@@ -44,7 +44,7 @@ class VadModel(object):
         X = Conv1D(196, 15, strides=4)(X_input)  # CONV1D
         X = BatchNormalization()(X)              # Batch normalization
         X = Activation('relu')(X)                # ReLu activation
-        #X = Dropout(0.8)(X)
+        X = Dropout(0.10)(X)
 
         # First GRU Layer
         X = GRU(128, return_sequences=True)(X)   # GRU (use 128 units and return the sequences)
