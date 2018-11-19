@@ -14,13 +14,13 @@ from keras.layers import GRU, Bidirectional, BatchNormalization, Reshape
 
 class VadModel(object):
 
-    def __init__(self, input_shape=(5511, 101), architecture_filename=None, weights_filename=None):
+    def __init__(self, input_shape=(5511, 101), architecture_filename=None, weights_filename=None, dropout_rates=[0.10, 0.50]):
         if architecture_filename:
             # Model reconstruction from JSON file
             with open(architecture_filename, 'r') as f:
                 self.model = model_from_json(f.read())
         else:
-            self.model = VadModel.get_model(input_shape)
+            self.model = VadModel.get_model(input_shape, dropout_rates)
 
         if weights_filename:
             self.model.load_weights(weights_filename)
@@ -28,7 +28,7 @@ class VadModel(object):
         self.version = 'v1.0.0'
         self.model.summary()
 
-    def get_model(input_shape):
+    def get_model(input_shape, dropout_rates):
         """
         Function creating the model's graph in Keras.
 
@@ -44,18 +44,18 @@ class VadModel(object):
         X = Conv1D(196, 15, strides=4)(X_input)  # CONV1D
         X = BatchNormalization()(X)              # Batch normalization
         X = Activation('relu')(X)                # ReLu activation
-        X = Dropout(0.10)(X)
+        X = Dropout(dropout_rates[0])(X)
 
         # First GRU Layer
         X = GRU(128, return_sequences=True)(X)   # GRU (use 128 units and return the sequences)
-        X = Dropout(0.5)(X)                      # dropout
+        X = Dropout(dropout_rates[1])(X)         # dropout
         X = BatchNormalization()(X)              # Batch normalization
 
         # Second GRU Layer
         X = GRU(128, return_sequences=True)(X)   # GRU (use 128 units and return the sequences)
-        X = Dropout(0.5)(X)                      # dropout
+        X = Dropout(dropout_rates[1])(X)         # dropout
         X = BatchNormalization()(X)              # Batch normalization
-        X = Dropout(0.5)(X)                      # dropout
+        X = Dropout(dropout_rates[1])(X)         # dropout
 
         # Time-distributed dense layer
         X = TimeDistributed(Dense(1, activation = "sigmoid"))(X) # time distributed  (sigmoid)

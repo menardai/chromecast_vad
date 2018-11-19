@@ -27,7 +27,7 @@ def train_10000_split_samples():
     training_generator = SpectrogramDataGenerator(X_filename_train, Y_filename_train, batch_size)
     val_generator = SpectrogramDataGenerator(X_filename_val, Y_filename_val, batch_size)
 
-    model_desk = '15-11-2018-input_d10-d50b'
+    model_desk = '15-11-2018'
     # load model
     #vad = VadModel(architecture_filename='models/model_architecture_12_11_2018.json', weights_filename='models/vad_12_11_2018b_weights.h5')
 
@@ -36,35 +36,41 @@ def train_10000_split_samples():
     #with open('models/model_architecture_{}.json'.format(model_desk), 'w') as f:
     #    f.write(vad.model.to_json())
 
-    vad = VadModel()
-    vad.model = load_model("models/vad_15-11-2018-input_d10-d50.h5")
+    #vad = VadModel()
+    #vad.model = load_model("models/vad_15-11-2018-input_d10-d50.h5")
 
-    # compile
-    #lr_list = [0.00005, 0.0001, 0.0002, 0.0005]
-    #lr_list = [0.0005]
-    lr_list = [0.00025]
-    for lr in lr_list:
-        opt = Adam(lr=lr, beta_1=0.9, beta_2=0.999, decay=0.01)
-        vad.model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
+    dropout_rates = [
+        [0.05, 0.05],
+        [0.05, 0.10],
+        [0.10, 0.25]
+    ]
 
-        experiment_name = 'input_drop_10_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%Hh%M"), lr)
-        tbCallBack = TensorBoard(log_dir='./logs/'+experiment_name,
-                                 histogram_freq=0, write_graph=False, write_images=False)
+    for dropout_rate in dropout_rates:
+        vad = VadModel(dropout_rates=dropout_rate)
 
-        # train
-        vad.model.fit_generator(
-            epochs=25,
+        # compile
+        lr_list = [0.00005, 0.00025]
+        for lr in lr_list:
+            opt = Adam(lr=lr, beta_1=0.9, beta_2=0.999, decay=0.01)
+            vad.model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
 
-            generator=training_generator,
-            steps_per_epoch=len(training_generator),
+            experiment_name = 'drop_{}_{}_{}'.format(dropout_rate[0], dropout_rate[1],
+                                                     datetime.datetime.now().strftime("%Y-%m-%d_%Hh%M"))
+            tbCallBack = TensorBoard(log_dir='./logs/'+experiment_name,
+                                     histogram_freq=0, write_graph=False, write_images=False)
+            # train
+            vad.model.fit_generator(
+                epochs=75,
 
-            validation_data=val_generator,
-            validation_steps=len(val_generator),
+                generator=training_generator,
+                steps_per_epoch=len(training_generator),
 
-            callbacks=[tbCallBack])
+                validation_data=val_generator,
+                validation_steps=len(val_generator),
 
-        vad.model.save_weights("models/vad_{}_weights.h5".format(model_desk))
-        vad.model.save("models/vad_{}.h5".format(model_desk))
+                callbacks=[tbCallBack])
+
+            vad.model.save("models/vad_{}_lr_{}_drop_{}_{}.h5".format(model_desk, lr, dropout_rate[0], dropout_rate[1]))
 
 
 if __name__ == '__main__':
