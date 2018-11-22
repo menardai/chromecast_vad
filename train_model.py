@@ -28,17 +28,18 @@ def train_10000_split_samples():
     training_generator = SpectrogramDataGenerator(X_filename_train, Y_filename_train, batch_size)
     val_generator = SpectrogramDataGenerator(X_filename_val, Y_filename_val, batch_size)
 
-    model_desk = '21-11-2018'
+    model_desk = '22-11-2018b'
     # load model
-    #vad = VadModel(architecture_filename='models/lstm_bi_model_architecture_20-11-2018.json',
-    #               weights_filename='models/lstm_bi_20-11-2018_lr_5e-05_drop_0.05_0.05.h5')
+    vad = VadModel(architecture_filename='models/model_architecture.json',
+                   weights_filename='models/model_weight.h5',
+                   dropout_rates=[0.05, 0.10])
 
     # use instance model and save the architecture
     #vad = VadModel()
     #with open('models/lstm_bi_model_architecture_{}.json'.format(model_desk), 'w') as f:
     #    f.write(vad.model.to_json())
 
-    #vad = VadModel()
+    #vad = VadModel()lstm_bi_model_architecture_20-11-2018
     #vad.model = load_model("models/lstm_bi_20-11-2018_lr_5e-05_drop_0.05_0.05.h5")
 
     dropout_rates = [
@@ -48,11 +49,11 @@ def train_10000_split_samples():
     ]
 
     for dropout_rate in dropout_rates:
-        vad = VadModel(dropout_rates=dropout_rate)
+        #vad = VadModel(dropout_rates=dropout_rate)
 
         # compile
-        lr_list = [0.00005, 0.00025]
-        #lr_list = [0.00025]
+        #lr_list = [0.00005, 0.00025]
+        lr_list =  [0.00010]
         for lr in lr_list:
             opt = Adam(lr=lr, beta_1=0.9, beta_2=0.999, decay=0.01)
             vad.model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])

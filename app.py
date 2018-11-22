@@ -89,8 +89,8 @@ def create_app(graph, vad_model):
 if __name__ == '__main__':
     graph = tf.Graph()
     with graph.as_default():
-        vad_model = VadModel(architecture_filename='models/model_architecture_15-11-2018-input_d10-d50.json',
-                             weights_filename='models/vad_15-11-2018_lr_0.00025_drop_0.05_0.05.h5')
+        vad_model = VadModel(architecture_filename='models/model_architecture.json',
+                             weights_filename='models/model_weight.h5')
 
     app = create_app(graph, vad_model)
     app.run(host='0.0.0.0')
