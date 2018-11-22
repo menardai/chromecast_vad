@@ -9,26 +9,33 @@ from scipy.io import wavfile
 from keras.models import model_from_json
 from keras.models import Model, load_model, Sequential
 from keras.layers import Dense, Activation, Dropout, Input, TimeDistributed, Conv1D
-from keras.layers import GRU, Bidirectional, BatchNormalization, Reshape
+from keras.layers import GRU, LSTM, Bidirectional, BatchNormalization, Reshape
 
 
 class VadModel(object):
 
-    def __init__(self, input_shape=(5511, 101), architecture_filename=None, weights_filename=None, dropout_rates=[0.10, 0.50]):
+    def __init__(self, input_shape=(1101, 101), architecture_model='lstm-bi', architecture_filename=None, weights_filename=None, dropout_rates=[0.10, 0.20]):
+        '''
+        2 seconds:  input_shape=(1101, 101) -> output_shape=(272, 1)
+        10 seconds: input_shape=(5511, 101) -> output_shape=(1375, 1)
+        '''
         if architecture_filename:
             # Model reconstruction from JSON file
             with open(architecture_filename, 'r') as f:
                 self.model = model_from_json(f.read())
         else:
-            self.model = VadModel.get_model(input_shape, dropout_rates)
+            if architecture_model == 'lstm-bi':
+                self.model = VadModel.get_model_lstm_bi(input_shape, dropout_rates)
+            else:
+                self.model = VadModel.get_model_gru(input_shape, dropout_rates)
 
         if weights_filename:
             self.model.load_weights(weights_filename)
 
-        self.version = 'v1.0.0'
+        self.version = 'v1.0.1'
         self.model.summary()
 
-    def get_model(input_shape, dropout_rates):
+    def get_model_gru(input_shape, dropout_rates):
         """
         Function creating the model's graph in Keras.
 
@@ -53,6 +60,46 @@ class VadModel(object):
 
         # Second GRU Layer
         X = GRU(128, return_sequences=True)(X)   # GRU (use 128 units and return the sequences)
+        X = Dropout(dropout_rates[1])(X)         # dropout
+        X = BatchNormalization()(X)              # Batch normalization
+        X = Dropout(dropout_rates[1])(X)         # dropout
+
+        # Time-distributed dense layer
+        X = TimeDistributed(Dense(1, activation = "sigmoid"))(X) # time distributed  (sigmoid)
+
+        model = Model(inputs = X_input, outputs = X)
+
+        return model
+
+    def get_model_lstm_bi(input_shape, dropout_rates):
+        """
+        Function creating the model's graph in Keras.
+
+        10 seconds: input_shape=(5511, 101) -> output_shape=(1375, 1)
+        2 seconds:  input_shape=(1101, 101) -> output_shape=(272, 1)
+        The output shape is function of input shape and the Conv1D layer params.
+
+        Argument:
+        input_shape -- shape of the model's input data (using Keras conventions)
+
+        Returns:
+        model -- Keras model instance
+        """
+        X_input = Input(shape=input_shape)
+
+        # CONV layer
+        X = Conv1D(196, 15, strides=4)(X_input)  # CONV1D
+        X = BatchNormalization()(X)              # Batch normalization
+        X = Activation('relu')(X)                # ReLu activation
+        X = Dropout(dropout_rates[0])(X)
+
+        # First LSTM Layer
+        X = Bidirectional(LSTM(128, return_sequences=True))(X)  # LSTM (use 128 units and return the sequences)
+        X = Dropout(dropout_rates[1])(X)         # dropout
+        X = BatchNormalization()(X)              # Batch normalization
+
+        # Second GRU Layer
+        X = Bidirectional(LSTM(128, return_sequences=True))(X)  # LSTM (use 128 units and return the sequences)
         X = Dropout(dropout_rates[1])(X)         # dropout
         X = BatchNormalization()(X)              # Batch normalization
         X = Dropout(dropout_rates[1])(X)         # dropout

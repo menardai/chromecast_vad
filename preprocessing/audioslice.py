@@ -15,6 +15,7 @@ class AudioSlice(object):
                  start_time_s=None,
                  fixed_length_s=None,
                  min_length_s=None, max_length_s=None,
+                 min_db=None,
                  output_format='wav'):
         """
         Arguments:
@@ -30,6 +31,7 @@ class AudioSlice(object):
 
         self.output_dir = output_dir
         self.output_filename_prefix = output_filename_prefix
+        self.min_db = min_db
 
         # create output folder if not exists
         if not os.path.exists(output_dir):
@@ -41,7 +43,7 @@ class AudioSlice(object):
             self.fixed_sequence_length_ms = None
 
             if min_length_s and max_length_s:
-                if min_length_s > 0 and max_length_s > min_length_s:
+                if min_length_s > 0 and max_length_s >= min_length_s:
                     self.min_length_ms = 1000 * min_length_s
                     self.max_length_ms = 1000 * max_length_s
                 else:
@@ -91,13 +93,14 @@ class AudioSlice(object):
         # split sound in XX seconds slices and save on disk
         for i, chunk in enumerate(audio[::self.fixed_sequence_length_ms]):
             if chunk.duration_seconds == (self.fixed_sequence_length_ms / 1000):
-                chunk_name = "{0}/{1}{2:05d}.{3}".format(self.output_dir, self.output_filename_prefix, next_chunk_index, self.output_format)
-                if verbose: print("exporting", chunk_name)
+                if self.min_db is None or chunk.max_dBFS >= self.min_db:
+                    chunk_name = "{0}/{1}{2:05d}.{3}".format(self.output_dir, self.output_filename_prefix, next_chunk_index, self.output_format)
+                    if verbose: print("exporting", chunk_name)
 
-                with open(chunk_name, "wb") as f:
-                    chunk.export(f, format=self.output_format)
+                    with open(chunk_name, "wb") as f:
+                        chunk.export(f, format=self.output_format)
 
-                next_chunk_index += 1
+                    next_chunk_index += 1
 
         return next_chunk_index
 

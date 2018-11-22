@@ -33,26 +33,26 @@ def load_raw_audio():
     musics = []
     noises = []
     
-    for filename in os.listdir("../data/dev_set/dialog"):
+    for filename in os.listdir("../data/dev_set_wav/dialog"):
         if filename.endswith("wav"):
             try:
-                audio = AudioSegment.from_wav("../data/dev_set/dialog/"+filename)
+                audio = AudioSegment.from_wav("../data/dev_set_wav/dialog/"+filename)
                 dialogs.append(audio)
             except Exception:
                 print('Error decoding audio file: ', filename)
                 
-    for filename in os.listdir("../data/dev_set/music"):
+    for filename in os.listdir("../data/dev_set_wav/music"):
         if filename.endswith("wav"):
             try:
-                audio = AudioSegment.from_wav("../data/dev_set/music/"+filename)
+                audio = AudioSegment.from_wav("../data/dev_set_wav/music/"+filename)
                 musics.append(audio)
             except Exception:
                 print('Error decoding audio file: ', filename)
             
-    for filename in os.listdir("../data/dev_set/noise"):
+    for filename in os.listdir("../data/dev_set_wav/noise"):
         if filename.endswith("wav"):
             try:
-                audio = AudioSegment.from_wav("../data/dev_set/noise/"+filename)
+                audio = AudioSegment.from_wav("../data/dev_set_wav/noise/"+filename)
                 noises.append(audio)
             except Exception:
                 print('Error decoding audio file: ', filename)

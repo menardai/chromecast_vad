@@ -37,7 +37,7 @@ class SpectrogramDataGenerator(Sequence):
 
 class Dataset(object):
 
-    def __init__(self, Tx, Ty, n_freq, dialog_dir, noise_dir, music_dir, verbose=False):
+    def __init__(self, Tx, Ty, n_freq, dialog_dir, noise_dir, music_dir, audio_length_ms=2000.0, verbose=False):
         """
         Arguments:
             Tx - integer, The number of time steps input to the model from the spectrogram
@@ -51,6 +51,7 @@ class Dataset(object):
         self.Tx = Tx
         self.Ty = Ty
         self.n_freq = n_freq
+        self.audio_length_ms = audio_length_ms
         self.verbose = verbose
 
         self.dialogs, self.noises, self.musics  = self._load_raw_audio(dialog_dir, noise_dir, music_dir)
@@ -107,7 +108,7 @@ class Dataset(object):
             np.save(x_sample_filename, X)
             np.save(y_sample_filename, Y)
 
-            if y.argmax() > 0: voice_sample_count += 1
+            if y.mean() > 0.20: voice_sample_count += 1
             del X, Y, x, y
 
         print('voice_sample_count = ', voice_sample_count)
@@ -122,9 +123,9 @@ class Dataset(object):
         Creates a training example with a given music, noise, and dialog.
 
         Arguments:
-        music -- a 10 second music audio recording
+        music -- a 2 second music audio recording
         dialogs -- a list of audio segments of a conversation between two persons
-        noise -- a 10 second noise audio recording
+        noise -- a 2 second noise audio recording
 
         Returns:
         x -- the spectrogram of the training example
@@ -150,27 +151,25 @@ class Dataset(object):
         # Initialize y (label vector) of zeros
         y = np.zeros((1, self.Ty))
 
-        # add a voice 9/10 times
-        if np.random.randint(0, 10) != 0:
-            # Select random "dialog" audio clips from the entire list of "dialogs" recordings
-            number_of_dialogs = 1  # np.random.randint(0, 2)
-            random_indices = np.random.randint(len(dialogs), size=number_of_dialogs)
-            random_dialogs = [dialogs[i] for i in random_indices]
+        # Select random "dialog" audio clips from the entire list of "dialogs" recordings
+        number_of_dialogs = np.random.randint(0, 2)
+        random_indices = np.random.randint(len(dialogs), size=number_of_dialogs)
+        random_dialogs = [dialogs[i] for i in random_indices]
 
-            # Loop over randomly selected "conversation" clips and insert in mixed_audio
-            for random_dialog in random_dialogs:
-                # Make dialog quieter or louder
-                dB_reduction = np.random.randint(0, 10)
-                random_dialog = random_dialog + dB_reduction
+        # Loop over randomly selected "conversation" clips and insert in mixed_audio
+        for random_dialog in random_dialogs:
+            # Make dialog quieter or louder
+            dB_reduction = np.random.randint(0, 10)
+            random_dialog = random_dialog + dB_reduction
 
-                # Insert the audio clip on the mixed_audio
-                if verbose: print("dialog insertion... {0} dB".format(dB_reduction))
-                mixed_audio, segment_time = self._insert_audio_clip(mixed_audio, random_dialog)
-                # Retrieve segment_start and segment_end from segment_time
-                segment_start, segment_end = segment_time
-                # Insert labels in "y"
-                y = self._insert_ones(y, segment_start, segment_end)
-                if verbose: print("dialog inserted [{0}, {1}]".format(segment_start, segment_end))
+            # Insert the audio clip on the mixed_audio
+            if verbose: print("dialog insertion... {0} dB".format(dB_reduction))
+            mixed_audio, segment_time = self._insert_audio_clip(mixed_audio, random_dialog)
+            # Retrieve segment_start and segment_end from segment_time
+            segment_start, segment_end = segment_time
+            # Insert labels in "y"
+            y = self._insert_ones(y, segment_start, segment_end)
+            if verbose: print("dialog inserted [{0}, {1}]".format(segment_start, segment_end))
 
         # Standardize the volume of the audio clip
         mixed_audio = self._match_target_amplitude(mixed_audio, -20.0)
@@ -224,7 +223,7 @@ class Dataset(object):
         audio segment does not overlap with existing segments.
 
         Arguments:
-        background -- a 10 second background audio recording.
+        background -- a 2 second background audio recording.
         audio_clip -- the audio clip to be inserted/overlaid.
         previous_segments -- times where audio segments have already been placed; None
 
@@ -234,24 +233,27 @@ class Dataset(object):
         # Get the duration of the audio clip in ms
         segment_ms = len(audio_clip)
 
-        # Use one of the helper functions to pick a random time segment onto which to insert
-        # the new audio clip.
-        segment_time = self._get_random_time_segment(segment_ms)
-
-        # Check if the new segment_time overlaps with one of the previous_segments. If so, keep
-        # picking new segment_time at random until it doesn't overlap.
-        if previous_segments is not None:
-            while self._is_overlapping(segment_time, previous_segments):
-                segment_time = self._get_random_time_segment(segment_ms)
-                # Add the new segment_time to the list of previous_segments
-            previous_segments.append(segment_time)
+        if segment_ms == len(background):
+            segment_time = (0, segment_ms-1)
+        else:
+            # Use one of the helper functions to pick a random time segment onto which to insert
+            # the new audio clip.
+            segment_time = self._get_random_time_segment(segment_ms)
+    
+            # Check if the new segment_time overlaps with one of the previous_segments. If so, keep
+            # picking new segment_time at random until it doesn't overlap.
+            if previous_segments is not None:
+                while self._is_overlapping(segment_time, previous_segments):
+                    segment_time = self._get_random_time_segment(segment_ms)
+                    # Add the new segment_time to the list of previous_segments
+                previous_segments.append(segment_time)
 
         # Superpose audio segment and background
-        new_background = background.overlay(audio_clip, position = segment_time[0])
+        new_background = background.overlay(audio_clip, position=segment_time[0])
 
         return new_background, segment_time
 
-    def _insert_ones(self, y, segment_start_ms, segment_end_ms):
+    def _insert_ones(self, y, segment_start_ms, segment_end_ms, audio_length_ms=2000.0):
         """
         Update the label vector y. The labels of the segment's output steps should be set to 1.
 
@@ -264,8 +266,8 @@ class Dataset(object):
         y -- updated labels
         """
         # duration of the background (in terms of spectrogram time-steps)
-        segment_start_y = int(segment_start_ms * self.Ty / 10000.0)
-        segment_end_y = int(segment_end_ms * self.Ty / 10000.0)
+        segment_start_y = int(segment_start_ms * self.Ty / audio_length_ms)
+        segment_end_y = int(segment_end_ms * self.Ty / audio_length_ms)
 
         # Add 1 to the correct index in the background label (y)
         for i in range(segment_start_y, segment_end_y + 1):
@@ -274,9 +276,9 @@ class Dataset(object):
 
         return y
 
-    def _get_random_time_segment(self, segment_ms):
+    def _get_random_time_segment(self, segment_ms, audio_length_ms=2000.0):
         """
-        Gets a random time segment of duration segment_ms in a 10,000 ms audio clip.
+        Gets a random time segment of duration segment_ms in a 2000 ms audio clip.
 
         Arguments:
         segment_ms -- the duration of the audio clip in ms ("ms" stands for "milliseconds")
@@ -284,8 +286,8 @@ class Dataset(object):
         Returns:
         segment_time -- a tuple of (segment_start, segment_end) in ms
         """
-        # Make sure segment doesn't run past the 10sec background
-        segment_start = np.random.randint(low=0, high=10000-segment_ms)
+        # Make sure segment doesn't run past the 2 seconds background
+        segment_start = np.random.randint(low=0, high=audio_length_ms-segment_ms)
         segment_end = segment_start + segment_ms - 1
 
         return (segment_start, segment_end)
@@ -321,7 +323,7 @@ class Dataset(object):
 
 
 if __name__ == '__main__':
-    dataset = Dataset(Tx=5511, Ty=1375, n_freq=101,
+    dataset = Dataset(Tx=1101, Ty=272, n_freq=101,
                       dialog_dir='data/dev_set_wav/dialog',
                       noise_dir='data/dev_set_wav/noise',
                       music_dir='data/dev_set_wav/music',
@@ -340,5 +342,7 @@ if __name__ == '__main__':
     # print('y.shape =', y.shape)
 
     #dataset.create_dev_dataset(2500, '../data/dev_set_2500_x.npy', '../data/dev_set_2500_y.npy')
+    
     #dataset.create_dev_dataset_files(5000, 'data/dev_set')
-    dataset.create_dev_dataset_files(5000, 'data/dev_set', start_index=5000)
+    #dataset.create_dev_dataset_files(5000, 'data/dev_set', start_index=5000)
+    dataset.create_dev_dataset_files(5000, 'data/dev_set', start_index=10000)

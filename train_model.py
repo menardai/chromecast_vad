@@ -23,26 +23,28 @@ def train_10000_split_samples():
     X_filename_train, X_filename_val, Y_filename_train, Y_filename_val = train_test_split(
         x_filenames, y_filenames, test_size=0.10, random_state=42)
 
-    batch_size = 250
+    batch_size = 500
+    #batch_size = 250
     training_generator = SpectrogramDataGenerator(X_filename_train, Y_filename_train, batch_size)
     val_generator = SpectrogramDataGenerator(X_filename_val, Y_filename_val, batch_size)
 
-    model_desk = '15-11-2018'
+    model_desk = '21-11-2018'
     # load model
-    #vad = VadModel(architecture_filename='models/model_architecture_12_11_2018.json', weights_filename='models/vad_12_11_2018b_weights.h5')
+    #vad = VadModel(architecture_filename='models/lstm_bi_model_architecture_20-11-2018.json',
+    #               weights_filename='models/lstm_bi_20-11-2018_lr_5e-05_drop_0.05_0.05.h5')
 
     # use instance model and save the architecture
     #vad = VadModel()
-    #with open('models/model_architecture_{}.json'.format(model_desk), 'w') as f:
+    #with open('models/lstm_bi_model_architecture_{}.json'.format(model_desk), 'w') as f:
     #    f.write(vad.model.to_json())
 
     #vad = VadModel()
-    #vad.model = load_model("models/vad_15-11-2018-input_d10-d50.h5")
+    #vad.model = load_model("models/lstm_bi_20-11-2018_lr_5e-05_drop_0.05_0.05.h5")
 
     dropout_rates = [
-        [0.05, 0.05],
+#        [0.10, 0.20],
         [0.05, 0.10],
-        [0.10, 0.25]
+#        [0.05, 0.05],
     ]
 
     for dropout_rate in dropout_rates:
@@ -50,17 +52,18 @@ def train_10000_split_samples():
 
         # compile
         lr_list = [0.00005, 0.00025]
+        #lr_list = [0.00025]
         for lr in lr_list:
             opt = Adam(lr=lr, beta_1=0.9, beta_2=0.999, decay=0.01)
             vad.model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
 
-            experiment_name = 'drop_{}_{}_{}'.format(dropout_rate[0], dropout_rate[1],
+            experiment_name = 'lstm_bi_{}_{}_{}'.format(dropout_rate[0], dropout_rate[1],
                                                      datetime.datetime.now().strftime("%Y-%m-%d_%Hh%M"))
             tbCallBack = TensorBoard(log_dir='./logs/'+experiment_name,
                                      histogram_freq=0, write_graph=False, write_images=False)
             # train
             vad.model.fit_generator(
-                epochs=75,
+                epochs=50,
 
                 generator=training_generator,
                 steps_per_epoch=len(training_generator),
@@ -70,7 +73,7 @@ def train_10000_split_samples():
 
                 callbacks=[tbCallBack])
 
-            vad.model.save("models/vad_{}_lr_{}_drop_{}_{}.h5".format(model_desk, lr, dropout_rate[0], dropout_rate[1]))
+            vad.model.save("models/lstm_bi_{}_lr_{}_drop_{}_{}.h5".format(model_desk, lr, dropout_rate[0], dropout_rate[1]))
 
 
 if __name__ == '__main__':
