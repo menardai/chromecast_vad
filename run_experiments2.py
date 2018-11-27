@@ -27,7 +27,6 @@ def start_experiments():
     val_generator = SpectrogramDataGenerator(X_filename_val, Y_filename_val, batch_size)
 
     dropout_rates = [
-        [0.25, 0.50, 0.25],
         [0.25, 0.50, 0.50],
         [0.25, 0.25, 0.80],
         #[0.40, 0.60, 0.60],
@@ -41,9 +40,8 @@ def start_experiments():
     ]
 
     model_weights = [
-        'many_to_one_2018-11-24_12h31_d0.25_0.5_0.25_u128_256_1',
-        'many_to_one_2018-11-23_16h35_d0.25_0.5_u128_256_1',
-        'many_to_one_2018-11-24_13h32_d0.25_0.25_0.8_u128_256_1',
+        'many_to_one_2018-11-26_13h33_d0.25_0.5_0.5_u128_256_0',
+        'many_to_one_2018-11-26_14h48_d0.25_0.25_0.8_u128_256_0',
     ]
 
     units_list = [
@@ -61,7 +59,7 @@ def start_experiments():
             for lr_index, lr in enumerate(lr_list):
 
                 opt = Adam(lr=lr, beta_1=0.9, beta_2=0.999, decay=0.01)
-                experiment_name = vad.train(75, training_generator, val_generator, opt, units, vad, dropout_rate, lr_index)
+                experiment_name = vad.train(50, training_generator, val_generator, opt, units, vad, dropout_rate, lr_index)
 
                 vad.save('models/{}.h5'.format(experiment_name))
 
