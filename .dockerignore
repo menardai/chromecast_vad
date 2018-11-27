@@ -1,7 +1,11 @@
 .git
 .dockerignore
+data/dev_set
 data/dev_set_wav
+data/test_set_wav
 data/*.npy
 data
 raw_data
 test
+logs
+notebooks
