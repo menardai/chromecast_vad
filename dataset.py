@@ -58,7 +58,7 @@ class Dataset(object):
 
     def create_dev_dataset(self, n_x, output_x_filename=None, output_y_filename=None):
         X = np.zeros((n_x, self.Tx, self.n_freq))
-        Y = np.zeros((n_x, self.Ty, 1))
+        Y = np.zeros((n_x, self.Ty))
 
         print('number of training samples to generate =', n_x)
 
@@ -91,7 +91,7 @@ class Dataset(object):
 
         for i in range(start_index, start_index + n_x):
             if i % 100 == 0:
-                print('sample {0}/{1}'.format(i, n_x))
+                print('sample {0}/{1}'.format(i, start_index + n_x))
                 gc.collect()
 
             music_index = randint(0, len(self.musics)-1)
@@ -108,7 +108,7 @@ class Dataset(object):
             np.save(x_sample_filename, X)
             np.save(y_sample_filename, Y)
 
-            if y.mean() > 0.20: voice_sample_count += 1
+            if y[0] == 1: voice_sample_count += 1
             del X, Y, x, y
 
         print('voice_sample_count = ', voice_sample_count)
@@ -149,7 +149,7 @@ class Dataset(object):
             mixed_audio = mixed_audio.overlay(noise, position=0)
 
         # Initialize y (label vector) of zeros
-        y = np.zeros((1, self.Ty))
+        y = np.zeros((self.Ty))
 
         # Select random "dialog" audio clips from the entire list of "dialogs" recordings
         number_of_dialogs = np.random.randint(0, 2)
@@ -163,13 +163,13 @@ class Dataset(object):
             random_dialog = random_dialog + dB_reduction
 
             # Insert the audio clip on the mixed_audio
-            if verbose: print("dialog insertion... {0} dB".format(dB_reduction))
             mixed_audio, segment_time = self._insert_audio_clip(mixed_audio, random_dialog)
             # Retrieve segment_start and segment_end from segment_time
             segment_start, segment_end = segment_time
             # Insert labels in "y"
-            y = self._insert_ones(y, segment_start, segment_end)
-            if verbose: print("dialog inserted [{0}, {1}]".format(segment_start, segment_end))
+            y = np.ones((self.Ty))
+
+            if verbose: print("dialog inserted {0}dB - [{1}, {2}]".format(dB_reduction, segment_start, segment_end))
 
         # Standardize the volume of the audio clip
         mixed_audio = self._match_target_amplitude(mixed_audio, -20.0)
@@ -253,29 +253,6 @@ class Dataset(object):
 
         return new_background, segment_time
 
-    def _insert_ones(self, y, segment_start_ms, segment_end_ms, audio_length_ms=2000.0):
-        """
-        Update the label vector y. The labels of the segment's output steps should be set to 1.
-
-        Arguments:
-        y -- numpy array of shape (1, Ty), the labels of the training example
-        segment_start_ms -- the start time of the segment in ms
-        segment_end_ms -- the end time of the segment in ms
-
-        Returns:
-        y -- updated labels
-        """
-        # duration of the background (in terms of spectrogram time-steps)
-        segment_start_y = int(segment_start_ms * self.Ty / audio_length_ms)
-        segment_end_y = int(segment_end_ms * self.Ty / audio_length_ms)
-
-        # Add 1 to the correct index in the background label (y)
-        for i in range(segment_start_y, segment_end_y + 1):
-            if i < self.Ty:
-                y[0, i] = 1
-
-        return y
-
     def _get_random_time_segment(self, segment_ms, audio_length_ms=2000.0):
         """
         Gets a random time segment of duration segment_ms in a 2000 ms audio clip.
@@ -323,26 +300,26 @@ class Dataset(object):
 
 
 if __name__ == '__main__':
-    dataset = Dataset(Tx=1101, Ty=272, n_freq=101,
+    dataset = Dataset(Tx=1101, Ty=1, n_freq=101,
                       dialog_dir='data/dev_set_wav/dialog',
                       noise_dir='data/dev_set_wav/noise',
                       music_dir='data/dev_set_wav/music',
                       verbose=True)
 
-    print("music[0]: " + str(len(dataset.musics[0])))        # Should be 10,000, since it is a 10 sec clip
-    print("dialogs[0]: " + str(len(dataset.dialogs[0])))     # Between 3000 and 9000 (random length)
-    print("noises[0]: " + str(len(dataset.noises[0])))       # Should be 10,000, since it is a 10 sec clip
+    print("music[0]: " + str(len(dataset.musics[0])))        # Should be 2000, since it is a 2 sec clip
+    print("dialogs[0]: " + str(len(dataset.dialogs[0])))     # Should be 2000, since it is a 2 sec clip
+    print("noises[0]: " + str(len(dataset.noises[0])))       # Should be 2000, since it is a 2 sec clip
 
-    print('music 10s audio count = ', len(dataset.musics))
+    print('music 2s audio count = ', len(dataset.musics))
     print('dialogs audio count = ', len(dataset.dialogs))
-    print('noises 10s audio count = ', len(dataset.noises))
+    print('noises 2s audio count = ', len(dataset.noises))
 
     # x, y = dataset.create_training_example(dataset.musics[1], dataset.dialogs, dataset.noises[1])
     # print('x.shape =', x.shape)
     # print('y.shape =', y.shape)
 
-    #dataset.create_dev_dataset(2500, '../data/dev_set_2500_x.npy', '../data/dev_set_2500_y.npy')
-    
     #dataset.create_dev_dataset_files(5000, 'data/dev_set')
     #dataset.create_dev_dataset_files(5000, 'data/dev_set', start_index=5000)
-    dataset.create_dev_dataset_files(5000, 'data/dev_set', start_index=10000)
+    #dataset.create_dev_dataset_files(5000, 'data/dev_set', start_index=10000)
+    #dataset.create_dev_dataset_files(5000, 'data/dev_set', start_index=15000)
+    dataset.create_dev_dataset_files(5000, 'data/dev_set', start_index=20000)

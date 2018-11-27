@@ -1,20 +1,21 @@
 import time
+import datetime
 
 import numpy as np
 import matplotlib.pyplot as plt
 
 from scipy.io import wavfile
-#from pydub import AudioSegment
-
 from keras.models import model_from_json
-from keras.models import Model, load_model, Sequential
-from keras.layers import Dense, Activation, Dropout, Input, TimeDistributed, Conv1D
-from keras.layers import GRU, LSTM, Bidirectional, BatchNormalization, Reshape
+from keras.models import Model, load_model
+from keras.layers import Dense, Activation, Dropout, Input, Conv1D
+from keras.layers import LSTM, Bidirectional, BatchNormalization
+from keras.callbacks import TensorBoard
 
 
 class VadModel(object):
 
-    def __init__(self, input_shape=(1101, 101), architecture_model='lstm-bi', architecture_filename=None, weights_filename=None, dropout_rates=[0.10, 0.20]):
+    def __init__(self, input_shape=(1101, 101), architecture_filename=None, weights_filename=None,
+                 dropout_rates=(0.10, 0.20, 0.20), lstm_units=128, dense_units=256):
         '''
         2 seconds:  input_shape=(1101, 101) -> output_shape=(272, 1)
         10 seconds: input_shape=(5511, 101) -> output_shape=(1375, 1)
@@ -24,59 +25,20 @@ class VadModel(object):
             with open(architecture_filename, 'r') as f:
                 self.model = model_from_json(f.read())
         else:
-            if architecture_model == 'lstm-bi':
-                self.model = VadModel.get_model_lstm_bi(input_shape, dropout_rates)
-            else:
-                self.model = VadModel.get_model_gru(input_shape, dropout_rates)
+            self.model = VadModel.get_model_lstm_bi(input_shape, dropout_rates, lstm_units, dense_units)
 
         if weights_filename:
             self.model.load_weights(weights_filename)
 
-        self.version = 'v1.0.1'
+        self.version = 'v1.1.0'
         self.model.summary()
 
-    def get_model_gru(input_shape, dropout_rates):
+    def get_model_lstm_bi(input_shape, dropout_rates, lstm_units, dense_units):
         """
         Function creating the model's graph in Keras.
+        (Many to one)
 
-        Argument:
-        input_shape -- shape of the model's input data (using Keras conventions)
-
-        Returns:
-        model -- Keras model instance
-        """
-        X_input = Input(shape=input_shape)
-
-        # CONV layer
-        X = Conv1D(196, 15, strides=4)(X_input)  # CONV1D
-        X = BatchNormalization()(X)              # Batch normalization
-        X = Activation('relu')(X)                # ReLu activation
-        X = Dropout(dropout_rates[0])(X)
-
-        # First GRU Layer
-        X = GRU(128, return_sequences=True)(X)   # GRU (use 128 units and return the sequences)
-        X = Dropout(dropout_rates[1])(X)         # dropout
-        X = BatchNormalization()(X)              # Batch normalization
-
-        # Second GRU Layer
-        X = GRU(128, return_sequences=True)(X)   # GRU (use 128 units and return the sequences)
-        X = Dropout(dropout_rates[1])(X)         # dropout
-        X = BatchNormalization()(X)              # Batch normalization
-        X = Dropout(dropout_rates[1])(X)         # dropout
-
-        # Time-distributed dense layer
-        X = TimeDistributed(Dense(1, activation = "sigmoid"))(X) # time distributed  (sigmoid)
-
-        model = Model(inputs = X_input, outputs = X)
-
-        return model
-
-    def get_model_lstm_bi(input_shape, dropout_rates):
-        """
-        Function creating the model's graph in Keras.
-
-        10 seconds: input_shape=(5511, 101) -> output_shape=(1375, 1)
-        2 seconds:  input_shape=(1101, 101) -> output_shape=(272, 1)
+        2 seconds:  input_shape=(1101, 101) -> output_shape=(1)
         The output shape is function of input shape and the Conv1D layer params.
 
         Argument:
@@ -94,22 +56,70 @@ class VadModel(object):
         X = Dropout(dropout_rates[0])(X)
 
         # First LSTM Layer
-        X = Bidirectional(LSTM(128, return_sequences=True))(X)  # LSTM (use 128 units and return the sequences)
+        X = Bidirectional(LSTM(lstm_units, return_sequences=True))(X) # LSTM (use 128 units and return the sequences)
         X = Dropout(dropout_rates[1])(X)         # dropout
         X = BatchNormalization()(X)              # Batch normalization
 
         # Second GRU Layer
-        X = Bidirectional(LSTM(128, return_sequences=True))(X)  # LSTM (use 128 units and return the sequences)
+        X = Bidirectional(LSTM(lstm_units))(X)   # LSTM (use 128 units and DO NOT return the sequences)
         X = Dropout(dropout_rates[1])(X)         # dropout
         X = BatchNormalization()(X)              # Batch normalization
         X = Dropout(dropout_rates[1])(X)         # dropout
 
-        # Time-distributed dense layer
-        X = TimeDistributed(Dense(1, activation = "sigmoid"))(X) # time distributed  (sigmoid)
+        # dense layer
+        X = Dense(dense_units, activation='relu')(X)
+        X = Dropout(dropout_rates[2])(X)
+        X = BatchNormalization()(X)
+
+        # 1 unit dense layer
+        X = Dense(1, activation = "sigmoid")(X)  # one unit dense (sigmoid)
 
         model = Model(inputs = X_input, outputs = X)
 
         return model
+
+    def train(self, nb_epochs, training_generator, val_generator, opt, units, vad, dropout_rate, lr_index):
+        '''
+        Train the model using the given params.
+
+        :param training_generator:
+        :param val_generator:
+        :param opt:
+        :param units:
+        :param vad:
+        :param dropout_rate:
+        :param lr_index:
+        :return:
+        '''
+        self.model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
+
+        # tensorboard callback
+        experiment_name = "many_to_one_{}_d{}_{}_{}_u{}_{}_{}".format(
+            datetime.datetime.now().strftime("%Y-%m-%d_%Hh%M"),
+            dropout_rate[0], dropout_rate[1], dropout_rate[2],
+            units['lstm'], units['dense'],
+            lr_index)
+        tbCallBack = TensorBoard(log_dir='./logs/' + experiment_name,
+                                 histogram_freq=0, write_graph=False, write_images=False)
+
+        print('train -->', experiment_name)
+
+        # train
+        self.model.fit_generator(
+            epochs=nb_epochs,
+
+            generator=training_generator,
+            steps_per_epoch=len(training_generator),
+
+            validation_data=val_generator,
+            validation_steps=len(val_generator),
+
+            callbacks=[tbCallBack])
+
+        return experiment_name
+
+    def save(self, filename):
+        self.model.save(filename)
 
     def predict(self, wav_filename=None, rate=None, data=None, show_graphs=False):
         if show_graphs:

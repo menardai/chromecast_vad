@@ -54,25 +54,6 @@ class VoiceActivityDetection(Resource):
 
         return flask.jsonify(result)
 
-    # def post(self):
-    #     ''' Save multi-part on disk and use the saved file to make the prediction. '''
-    #     parse = reqparse.RequestParser()
-    #     parse.add_argument('audio', type=werkzeug.FileStorage, location='files')
-    #
-    #     args = parse.parse_args()
-    #     audio_file = args['audio']
-    #     audio_file.save('audio_received.wav')
-    #
-    #     # ask the model to make a prediction
-    #     predictions = self.vad_model.predict(wav_filename='audio_received.wav')
-    #
-    #     statinfo = os.stat('audio_received.wav')
-    #
-    #     return {
-    #         'prediction length': len(predictions),
-    #         'audio file size': statinfo.st_size
-    #     }
-
 
 def create_app(graph, vad_model):
     app = flask.Flask(__name__)
@@ -83,7 +64,6 @@ def create_app(graph, vad_model):
     api.add_resource(VoiceActivityDetection, '/predict')
 
     return app
-
 
 
 if __name__ == '__main__':
