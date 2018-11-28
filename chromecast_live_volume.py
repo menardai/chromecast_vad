@@ -222,9 +222,9 @@ def test_is_someone_talking():
         print("Can't connect to voice activity detection web service.")
 
 
-def start_volume_control():
+def start_volume_control(vad_url='http://127.0.0.1:5000/predict'):
     # Voice Activity Detector
-    vad = VoiceActivityDetector(vad_url='http://192.168.86.41:5000/predict')
+    vad = VoiceActivityDetector(vad_url)
 
     # Chromecast
     print('Looking for chromecast devices...\n')

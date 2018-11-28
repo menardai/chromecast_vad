@@ -318,8 +318,7 @@ if __name__ == '__main__':
     # print('x.shape =', x.shape)
     # print('y.shape =', y.shape)
 
-    #dataset.create_dev_dataset_files(5000, 'data/dev_set')
+    dataset.create_dev_dataset_files(5000, 'data/dev_set')
     #dataset.create_dev_dataset_files(5000, 'data/dev_set', start_index=5000)
     #dataset.create_dev_dataset_files(5000, 'data/dev_set', start_index=10000)
     #dataset.create_dev_dataset_files(5000, 'data/dev_set', start_index=15000)
-    dataset.create_dev_dataset_files(5000, 'data/dev_set', start_index=20000)
