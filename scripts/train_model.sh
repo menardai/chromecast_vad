@@ -1,2 +1,3 @@
 #!/usr/bin/env bash
-python ../train_model.py
+cd ..
+python run_experiments.py
