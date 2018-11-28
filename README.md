@@ -1,5 +1,9 @@
 # chromecast_vad
-Keras RNN implementation of a voice activity detector to control Chromecast device volume.
+A Keras implementation of a RNN voice activity detector to control Chromecast device volume.  
+
+The model, a two layers bidirectional LSTM followed by a dense layer, takes a spectrogram as input and output a single value (speech or no speech).  
+
+The client app connects to the chromecast device of your choice, waits for the music to start playing on this device and starts listening on the host computer. It listens for 2 seconds and sends the recorded audio data to a Flask web app for analysis. The web app sends the received audio data to the neural network for inference. Based on the prediction made by the neural network, the client app will decrease or increase the chromecast device's volume.
 
 ## Dependencies
 - [Pychromecast](https://github.com/balloob/pychromecast)
