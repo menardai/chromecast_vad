@@ -39,3 +39,65 @@ an open and publicly available dataset of voices that everyone can use to train 
 - [QUT-NOISE-SRE](https://research.qut.edu.au/saivt/databases/qut-noise-databases-and-protocols/) Databases  
 D. Dean, A. Kanagasundaram, H. Ghaemmaghami, M. Hafizur, S. Sridharan (2015) “The QUT-NOISE-SRE protocol for the evaluation of noisy speaker recognition”. In Proceedings of Interspeech 2015, September, Dresden, Germany.
 - Music played by a home speaker recorded using Audacity
+
+## Live Demo
+
+
+## Live Demo Output
+```
+$ python chromecast_live_volume.py
+
+Looking for chromecast devices...
+
+Connected to: Cuisine
+initial volume = 0.45
+no music playing
+no music playing
+no music playing
+no music playing
+> recording
+  speech probability = 0.01
+  steps_without_speech = 1
+> recording
+  speech probability = 0.01
+  steps_without_speech = 2
+> recording
+  speech probability = 0.00
+  steps_without_speech = 3
+> recording
+  speech probability = 0.05
+  steps_without_speech = 4
+> recording
+  speech probability = 1.00
+  *** SPEECH DETECTED ***
+  set volume to 0.30
+> recording
+  speech probability = 1.00
+  *** SPEECH DETECTED ***
+> recording
+  speech probability = 1.00
+  *** SPEECH DETECTED ***
+> recording
+  speech probability = 1.00
+  *** SPEECH DETECTED ***
+> recording
+  speech probability = 1.00
+  *** SPEECH DETECTED ***
+> recording
+  speech probability = 0.09
+  steps_without_speech = 1
+> recording
+  speech probability = 0.07
+  steps_without_speech = 2
+> recording
+  speech probability = 0.03
+  steps_without_speech = 3
+  set volume to 0.45
+> recording
+  speech probability = 0.01
+  steps_without_speech = 4
+> recording
+  speech probability = 0.01
+  steps_without_speech = 5
+```
+
