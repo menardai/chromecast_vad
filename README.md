@@ -42,7 +42,9 @@ D. Dean, A. Kanagasundaram, H. Ghaemmaghami, M. Hafizur, S. Sridharan (2015) “
 - Music played by a home speaker recorded using Audacity
 
 ## Live Demo
-
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=EGIYBpYSsTs" target="_blank">
+<img src="http://img.youtube.com/vi/EGIYBpYSsTs/0.jpg" 
+alt="VAD live demo" width="560" height="315" border="10" /></a>
 
 ## Live Demo Output
 ```
